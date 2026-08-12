@@ -38,6 +38,8 @@ function Dashboard({
   setSearchQuery,
   onDeleteHistory,
   onClearHistory,
+  user,
+  onLogout,
 }) {
   const modes = [
     { key: 'detect', label: 'Object Detection', description: 'Identify nearby objects in real time' },
@@ -97,11 +99,22 @@ function Dashboard({
           <p className="hero-description">
             Camera-based assistance for object recognition, reading, scene understanding, and voice guidance.
           </p>
+          {user ? (
+            <p className="helper-text">Signed in as <strong>{user.name}</strong> ({user.method === 'google' ? 'Google' : 'Email'})</p>
+          ) : null}
         </div>
         <div className="hero-actions">
           <Link to="/settings" className="secondary-btn">
             <Settings2 size={18} /> Settings
           </Link>
+          {user ? (
+            <button className="secondary-btn logout-btn" onClick={() => {
+              onLogout();
+              window.location.href = '/';
+            }}>
+              <AlertTriangle size={18} /> Sign out
+            </button>
+          ) : null}
           <button className="primary-btn" onClick={isCameraActive ? stopCamera : startCamera}>
             <Camera size={18} /> {isCameraActive ? 'Stop Camera' : 'Start Camera'}
           </button>

@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import Dashboard from './pages/Dashboard';
+import Landing from './pages/Landing';
 import Settings from './pages/Settings';
+import Login from './pages/Login';
 import { clearHistory, deleteHistoryItem, getHistory, healthCheck, saveHistory, uploadAnalysis } from './services/api';
 import { createSpeechRecognition, speakText, stopSpeech } from './services/speech';
 
@@ -24,12 +26,17 @@ function App() {
     largeText: false,
     reducedMotion: false,
   });
+  const [user, setUser] = useState(null);
   const recognitionRef = useRef(null);
 
   useEffect(() => {
     const saved = localStorage.getItem('visionassist-settings');
     if (saved) {
       setSettings(JSON.parse(saved));
+    }
+    const storedUser = localStorage.getItem('visionassist-user');
+    if (storedUser) {
+      setUser(JSON.parse(storedUser));
     }
     loadHistory();
     healthCheck().then(() => setStatusMessage('Backend connection is healthy.')).catch(() => setStatusMessage('Backend offline. Start the FastAPI server to enable analysis.'));
@@ -43,9 +50,14 @@ function App() {
   }, [settings]);
 
   useEffect(() => {
-    if (!isCameraActive) return undefined;
     const preview = videoRef.current;
-    if (preview && stream) preview.srcObject = stream;
+    if (preview) {
+      if (isCameraActive && stream) {
+        preview.srcObject = stream;
+      } else {
+        preview.srcObject = null;
+      }
+    }
     return () => {
       if (preview) preview.srcObject = null;
     };
@@ -65,14 +77,27 @@ function App() {
   };
 
   const startCamera = async () => {
+    if (!navigator.mediaDevices?.getUserMedia) {
+      setPermissionError('Camera access is not supported by this browser.');
+      setStatusMessage('Cannot start camera because the browser does not support it.');
+      return;
+    }
+
     try {
-      const mediaStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+      const mediaStream = await navigator.mediaDevices.getUserMedia({
+        video: {
+          width: { ideal: 1280 },
+          height: { ideal: 720 },
+          facingMode: 'environment',
+        },
+        audio: false,
+      });
       setStream(mediaStream);
       setIsCameraActive(true);
       setPermissionError('');
       setStatusMessage('Camera is ready. Capture a frame to analyze it.');
     } catch (error) {
-      setPermissionError('Camera permission was denied or unavailable. Please allow camera access and try again.');
+      setPermissionError('Camera permission was denied or unavailable. Please allow camera access in your browser settings and try again.');
       setStatusMessage('Camera access is blocked.');
     }
   };
@@ -166,6 +191,21 @@ function App() {
     setVoiceListening(false);
   };
 
+  const authenticateUser = ({ name, method }) => {
+    const profile = { name, method, signedInAt: new Date().toISOString() };
+    setUser(profile);
+    localStorage.setItem('visionassist-user', JSON.stringify(profile));
+    setStatusMessage(`Signed in as ${profile.name}.`);
+  };
+
+  const signOut = () => {
+    stopCamera();
+    setUser(null);
+    localStorage.removeItem('visionassist-user');
+    autoCameraRequested.current = false;
+    setStatusMessage('You have signed out.');
+  };
+
   const deleteHistoryEntry = async (id) => {
     try {
       await deleteHistoryItem(id);
@@ -209,8 +249,10 @@ function App() {
       setSearchQuery,
       onDeleteHistory: deleteHistoryEntry,
       onClearHistory: clearAllHistory,
+      user,
+      onLogout: signOut,
     }),
-    [settings, isCameraActive, isProcessing, permissionError, currentMode, lastResult, history, voiceListening, statusMessage, searchQuery]
+    [settings, isCameraActive, isProcessing, permissionError, currentMode, lastResult, history, voiceListening, statusMessage, searchQuery, user]
   );
 
   return (
@@ -219,11 +261,12 @@ function App() {
         {statusMessage}
       </div>
       <Routes>
-        <Route path="/" element={<Dashboard {...dashboardProps} />} />
-        <Route path="/settings" element={<Settings settings={settings} updateSetting={updateSetting} onClearHistory={clearAllHistory} />} />
+        <Route path="/" element={<Landing />} />
+        <Route path="/login" element={<Login onLogin={authenticateUser} onGoogleLogin={authenticateUser} />} />
+        <Route path="/dashboard" element={user ? <Dashboard {...dashboardProps} /> : <Navigate to="/login" replace />} />
+        <Route path="/settings" element={user ? <Settings settings={settings} updateSetting={updateSetting} onClearHistory={clearAllHistory} /> : <Navigate to="/login" replace />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
-      <video ref={videoRef} autoPlay playsInline muted className="hidden-video" />
     </div>
   );
 }

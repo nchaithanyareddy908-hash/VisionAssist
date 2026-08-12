@@ -81,6 +81,7 @@ MAX_FILE_SIZE_BYTES=5000000
 
 ```bash
 cd frontend
+npm install
 npm run dev
 ```
 
@@ -88,8 +89,26 @@ npm run dev
 
 ```bash
 cd backend
+py -m pip install -r requirements.txt
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
+
+## Public deployment
+
+### Deploying the frontend on Vercel
+
+1. Push the project to GitHub.
+2. Sign in to Vercel and create a new project.
+3. Select this repository and set the root directory to `frontend`.
+4. Set the build command to `npm run build` and the output directory to `dist`.
+5. Add an environment variable if your backend is hosted externally:
+   - `VITE_API_URL=https://your-backend.example.com`
+
+### Notes
+
+- The frontend is deployable as a public website using Vercel.
+- The backend remains a separate service and must also be hosted for analysis features.
+- Visitors can open the homepage without a local camera, and can login when ready.
 
 ## API documentation
 
