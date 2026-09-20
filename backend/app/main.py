@@ -16,7 +16,9 @@ from .config import (
     MAX_FILE_SIZE_BYTES,
 )
 from .database import Database
-from .services import describe_scene, detect_objects, ocr_text, safety_warnings
+# NOTE: heavy ML/CV services (ultralytics, OpenCV, easyocr) are imported
+# inside endpoint functions to avoid failing app startup when those
+# optional dependencies are not installed during quick auth/debug runs.
 
 app = FastAPI(title="VisionAssist API", version="1.0.0")
 app.add_middleware(
@@ -58,7 +60,9 @@ def build_google_auth_url() -> str:
 @app.get("/auth/google/login")
 def google_login() -> RedirectResponse:
     if not GOOGLE_CLIENT_ID or not GOOGLE_CLIENT_SECRET:
-        raise HTTPException(status_code=500, detail="Google OAuth is not configured.")
+        # Redirect back to the frontend with an error so the UI can show a friendly message
+        fallback = f"{FRONTEND_BASE_URL}/login?error=oauth_not_configured"
+        return RedirectResponse(url=fallback)
     return RedirectResponse(url=build_google_auth_url())
 
 
@@ -66,7 +70,9 @@ def google_login() -> RedirectResponse:
 def google_callback(request: Request) -> HTMLResponse:
     code = request.query_params.get("code")
     if not code:
-        raise HTTPException(status_code=400, detail="Missing authorization code.")
+        redirect_url = f"{FRONTEND_BASE_URL}/login?error=missing_code"
+        html = f"<html><head><meta charset=\"utf-8\"></head><body><script>window.location.replace('{redirect_url}');</script></body></html>"
+        return HTMLResponse(content=html, status_code=200)
 
     token_response = requests.post(
         "https://oauth2.googleapis.com/token",
@@ -80,19 +86,25 @@ def google_callback(request: Request) -> HTMLResponse:
         headers={"Content-Type": "application/x-www-form-urlencoded"},
     )
     if not token_response.ok:
-        raise HTTPException(status_code=400, detail="Unable to exchange code for token.")
+        redirect_url = f"{FRONTEND_BASE_URL}/login?error=token_exchange_failed"
+        html = f"<html><head><meta charset=\"utf-8\"></head><body><script>window.location.replace('{redirect_url}');</script></body></html>"
+        return HTMLResponse(content=html, status_code=200)
 
     token_data = token_response.json()
     access_token = token_data.get("access_token")
     if not access_token:
-        raise HTTPException(status_code=400, detail="Google did not return an access token.")
+        redirect_url = f"{FRONTEND_BASE_URL}/login?error=no_access_token"
+        html = f"<html><head><meta charset=\"utf-8\"></head><body><script>window.location.replace('{redirect_url}');</script></body></html>"
+        return HTMLResponse(content=html, status_code=200)
 
     userinfo_response = requests.get(
         "https://www.googleapis.com/oauth2/v2/userinfo",
         headers={"Authorization": f"Bearer {access_token}"},
     )
     if not userinfo_response.ok:
-        raise HTTPException(status_code=400, detail="Unable to fetch Google user info.")
+        redirect_url = f"{FRONTEND_BASE_URL}/login?error=fetch_user_failed"
+        html = f"<html><head><meta charset=\"utf-8\"></head><body><script>window.location.replace('{redirect_url}');</script></body></html>"
+        return HTMLResponse(content=html, status_code=200)
 
     userinfo = userinfo_response.json()
     user_name = userinfo.get("name") or userinfo.get("email") or "Google User"
@@ -111,6 +123,8 @@ async def detect(file: UploadFile = File(...)) -> Dict[str, Any]:
         raise HTTPException(status_code=413, detail="Image too large.")
     if not contents:
         raise HTTPException(status_code=400, detail="The uploaded image is empty.")
+    from .services import detect_objects
+
     result = detect_objects(contents)
     if result.get("status") == "error":
         raise HTTPException(status_code=422, detail=result.get("message", "Detection failed."))
@@ -124,6 +138,8 @@ async def ocr(file: UploadFile = File(...)) -> Dict[str, Any]:
     contents = await file.read()
     if len(contents) > MAX_FILE_SIZE_BYTES:
         raise HTTPException(status_code=413, detail="Image too large.")
+    from .services import ocr_text
+
     result = ocr_text(contents)
     if result.get("status") == "error":
         raise HTTPException(status_code=422, detail=result.get("message", "OCR failed."))
@@ -137,6 +153,8 @@ async def describe(file: UploadFile = File(...)) -> Dict[str, Any]:
     contents = await file.read()
     if len(contents) > MAX_FILE_SIZE_BYTES:
         raise HTTPException(status_code=413, detail="Image too large.")
+    from .services import detect_objects, ocr_text, describe_scene, safety_warnings
+
     detection_result = detect_objects(contents)
     ocr_result = ocr_text(contents)
     description_result = describe_scene(contents, detections=detection_result.get("objects", []), text=ocr_result.get("text", ""))

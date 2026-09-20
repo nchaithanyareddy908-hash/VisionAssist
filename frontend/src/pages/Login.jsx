@@ -17,6 +17,25 @@ function Login({ onLogin, onGoogleLogin }) {
       const name = params.get('name');
       onGoogleLogin({ name, method: 'google' });
       navigate('/', { replace: true });
+      return;
+    }
+    // Handle OAuth errors forwarded from the backend
+    if (params.get('error')) {
+      const err = params.get('error');
+      if (err === 'oauth_not_configured') {
+        setError('Google sign-in is not configured on the backend.');
+      } else if (err === 'missing_code') {
+        setError('Authentication failed: missing authorization code.');
+      } else if (err === 'token_exchange_failed') {
+        setError('Authentication failed: unable to exchange authorization code.');
+      } else if (err === 'no_access_token') {
+        setError('Authentication failed: no access token returned by Google.');
+      } else if (err === 'fetch_user_failed') {
+        setError('Authentication failed: unable to retrieve user information from Google.');
+      } else {
+        setError('Authentication failed.');
+      }
+      // keep the user on login page so they can try again
     }
   }, [location.search, navigate, onGoogleLogin]);
 
@@ -33,7 +52,23 @@ function Login({ onLogin, onGoogleLogin }) {
   const handleGoogle = () => {
     setStatus('Redirecting to Google...');
     const authBase = import.meta.env.VITE_API_URL || 'http://localhost:8000';
-    window.location.href = `${authBase}/auth/google/login`;
+
+    // Check backend health before redirecting so user gets clear feedback
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 4000);
+    fetch(`${authBase}/api/health`, { signal: controller.signal }).then((r) => {
+      clearTimeout(timeout);
+      if (r.ok) {
+        window.location.href = `${authBase}/auth/google/login`;
+      } else {
+        setStatus('Unable to reach authentication server.');
+        setError('Google sign-in requires the backend to be running. Start the backend or set VITE_API_URL to a reachable backend.');
+      }
+    }).catch(() => {
+      clearTimeout(timeout);
+      setStatus('Unable to reach authentication server.');
+      setError('Google sign-in requires the backend to be running. Start the backend or set VITE_API_URL to a reachable backend.');
+    });
   };
 
   return (

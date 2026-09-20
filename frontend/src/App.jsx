@@ -77,9 +77,17 @@ function App() {
   };
 
   const startCamera = async () => {
-    if (!navigator.mediaDevices?.getUserMedia) {
-      setPermissionError('Camera access is not supported by this browser.');
-      setStatusMessage('Cannot start camera because the browser does not support it.');
+    // Ensure getUserMedia is available and we're in a secure context (HTTPS or localhost)
+    const supportsGetUserMedia = !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia);
+    const isSecure = window.location.protocol === 'https:' || window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+    if (!supportsGetUserMedia) {
+      setPermissionError('Camera access is not available in this browser.');
+      setStatusMessage('This browser does not support camera access (getUserMedia). Try a modern browser like Chrome, Edge, or Firefox.');
+      return;
+    }
+    if (!isSecure) {
+      setPermissionError('Camera access requires a secure context (HTTPS).');
+      setStatusMessage('Serve the app over HTTPS or use localhost to enable camera access.');
       return;
     }
 
@@ -97,8 +105,10 @@ function App() {
       setPermissionError('');
       setStatusMessage('Camera is ready. Capture a frame to analyze it.');
     } catch (error) {
-      setPermissionError('Camera permission was denied or unavailable. Please allow camera access in your browser settings and try again.');
-      setStatusMessage('Camera access is blocked.');
+      // Distinguish between permission denied and other errors
+      const message = (error && error.name === 'NotAllowedError') ? 'Camera permission was denied. Allow camera access and try again.' : 'Camera permission was denied or unavailable. Please allow camera access in your browser settings and try again.';
+      setPermissionError(message);
+      setStatusMessage('Camera access is blocked or unavailable.');
     }
   };
 

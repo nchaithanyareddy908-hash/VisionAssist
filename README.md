@@ -51,18 +51,14 @@ People with visual impairments often rely on helpers, guide dogs, or other aids 
 - Node.js 18+
 - Python 3.10+
 
-### Frontend
+### Install dependencies
 
 ```bash
 cd frontend
 npm install
-```
 
-### Backend
-
-```bash
-cd backend
-py -m pip install -r requirements.txt
+cd ../backend
+py -3.11 -m pip install -r requirements.txt
 ```
 
 ## Environment variables
@@ -77,7 +73,7 @@ MAX_FILE_SIZE_BYTES=5000000
 
 ## How to run
 
-### Frontend
+### Frontend and backend
 
 ```bash
 cd frontend
@@ -85,13 +81,7 @@ npm install
 npm run dev
 ```
 
-### Backend
-
-```bash
-cd backend
-py -m pip install -r requirements.txt
-uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
-```
+`npm run dev` starts Vite on `http://localhost:5173` and the FastAPI backend on `http://localhost:8000` together using Python 3.11. Stop the frontend command to stop both processes.
 
 ## Public deployment
 
@@ -109,6 +99,42 @@ uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 - The frontend is deployable as a public website using Vercel.
 - The backend remains a separate service and must also be hosted for analysis features.
 - Visitors can open the homepage without a local camera, and can login when ready.
+
+## Backend deployment
+
+The backend can be deployed separately on a free service such as Fly.io, Render, or Railway. A Dockerfile and Fly configuration are included in `backend/`.
+
+### Fly.io deployment
+
+1. Install the Fly CLI: `curl -L https://fly.io/install.sh | sh`
+2. Login: `fly auth login`
+3. Create the app in the `backend` folder:
+   ```bash
+   cd backend
+   fly launch --name visionassist-backend --copy-config
+   ```
+4. Add required secrets in the Fly app settings:
+   - `DATABASE_PATH=visionassist.db`
+   - `ALLOWED_ORIGINS=https://your-frontend.vercel.app`
+   - `MAX_FILE_SIZE_BYTES=5000000`
+   - `GOOGLE_CLIENT_ID=...`
+   - `GOOGLE_CLIENT_SECRET=...`
+   - `GOOGLE_REDIRECT_URI=https://your-backend.fly.dev/auth/google/callback`
+   - `FRONTEND_BASE_URL=https://your-frontend.vercel.app`
+5. Deploy:
+   ```bash
+   fly deploy
+   ```
+
+### Frontend integration
+
+Once the backend is hosted, set `VITE_API_URL` in `frontend/.env` or in Vercel environment variables to your backend URL, for example:
+
+```env
+VITE_API_URL=https://your-backend.fly.dev
+```
+
+Then redeploy the frontend.
 
 ## API documentation
 
