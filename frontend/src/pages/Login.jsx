@@ -51,7 +51,7 @@ function Login({ onLogin, onGoogleLogin }) {
 
   const handleGoogle = () => {
     setStatus('Redirecting to Google...');
-    const authBase = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+    const authBase = import.meta.env.VITE_API_URL || (import.meta.env.DEV ? 'http://localhost:8000' : window.location.origin);
 
     // Check backend health before redirecting so user gets clear feedback
     const controller = new AbortController();

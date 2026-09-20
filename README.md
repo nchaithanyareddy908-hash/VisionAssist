@@ -85,20 +85,29 @@ npm run dev
 
 ## Public deployment
 
-### Deploying the frontend on Vercel
+### Deploying the frontend and backend together on Vercel
 
 1. Push the project to GitHub.
 2. Sign in to Vercel and create a new project.
 3. Select this repository and set the root directory to `frontend`.
-4. Set the build command to `npm run build` and the output directory to `dist`.
-5. Add an environment variable if your backend is hosted externally:
-   - `VITE_API_URL=https://your-backend.example.com`
+4. Change the root directory to the repository root (`.`), so Vercel can detect both `frontend/` and `api/`.
+5. Keep the build configuration from `vercel.json`. It builds the React frontend from `frontend/package.json` and exposes FastAPI through `api/index.py`.
+6. Add these environment variables in Vercel Project Settings for Production, Preview, and Development:
+   - `ALLOWED_ORIGINS=https://vision-assist-self.vercel.app`
+   - `FRONTEND_BASE_URL=https://vision-assist-self.vercel.app`
+   - `GOOGLE_CLIENT_ID=<your Google client ID>`
+   - `GOOGLE_CLIENT_SECRET=<your Google client secret>`
+   - `GOOGLE_REDIRECT_URI=https://vision-assist-self.vercel.app/auth/google/callback`
+   - `DATABASE_PATH=/tmp/visionassist.db`
+7. Leave `VITE_API_URL` unset. The deployed frontend uses its own Vercel domain for `/api` and OAuth requests.
+8. Deploy or redeploy the project.
 
 ### Notes
 
-- The frontend is deployable as a public website using Vercel.
-- The backend remains a separate service and must also be hosted for analysis features.
-- Visitors can open the homepage without a local camera, and can login when ready.
+- The frontend and lightweight FastAPI API are deployed together on the same Vercel domain.
+- Vercel storage is temporary, so SQLite history is not durable between function instances.
+- The full YOLO and EasyOCR workloads require the backend dependencies in `backend/requirements.txt`; for reliable production image analysis, deploy those workloads on a container host and set `VITE_API_URL` to that service instead.
+- Add `https://vision-assist-self.vercel.app/auth/google/callback` as an authorized redirect URI in Google Cloud Console.
 
 ## Backend deployment
 
