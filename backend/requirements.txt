@@ -8,4 +8,4 @@ python-dotenv==1.0.1
 requests==2.32.3
 pydantic==2.9.0
 ultralytics==8.2.78
-easyocr==1.7.3
+
