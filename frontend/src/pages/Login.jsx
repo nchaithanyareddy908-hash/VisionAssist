@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { LogIn, Lock, User } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -12,44 +12,70 @@ function Login({ onLogin, onGoogleLogin }) {
   const [error, setError] = useState('');
   const [status, setStatus] = useState('');
 
+  const googleHandled = useRef(false);
+
   useEffect(() => {
     const params = new URLSearchParams(location.search);
 
-    // Successful Google login
-    if (params.get('success') === '1' && params.get('name')) {
-      const name = params.get('name');
+    const success = params.get('success');
+    const name = params.get('name');
+    const oauthError = params.get('error');
 
-      onGoogleLogin({
-        name,
+    // Google login successful
+    if (success === '1' && name && !googleHandled.current) {
+      googleHandled.current = true;
+
+      const user = {
+        name: name,
         method: 'google',
-      });
+      };
 
+      // Save Google login
+      localStorage.setItem(
+        'visionassist_user',
+        JSON.stringify(user)
+      );
+
+      localStorage.setItem(
+        'visionassist_logged_in',
+        'true'
+      );
+
+      // Send user information to App
+      if (onGoogleLogin) {
+        onGoogleLogin(user);
+      }
+
+      // Go to the main application
       navigate('/', { replace: true });
+
       return;
     }
 
-    // Handle OAuth errors from backend
-    if (params.get('error')) {
-      const err = params.get('error');
-
-      if (err === 'oauth_not_configured') {
-        setError('Google sign-in is not configured on the backend.');
-      } else if (err === 'missing_code') {
-        setError('Authentication failed: missing authorization code.');
-      } else if (err === 'token_exchange_failed') {
+    // Google authentication errors
+    if (oauthError) {
+      if (oauthError === 'oauth_not_configured') {
         setError(
-          'Authentication failed: unable to exchange authorization code.'
+          'Google sign-in is not configured on the backend.'
         );
-      } else if (err === 'no_access_token') {
+      } else if (oauthError === 'missing_code') {
         setError(
-          'Authentication failed: no access token returned by Google.'
+          'Authentication failed: missing authorization code.'
         );
-      } else if (err === 'fetch_user_failed') {
+      } else if (oauthError === 'token_exchange_failed') {
         setError(
-          'Authentication failed: unable to retrieve user information from Google.'
+          'Authentication failed while connecting to Google.'
+        );
+      } else if (oauthError === 'no_access_token') {
+        setError(
+          'Authentication failed: Google did not return an access token.'
+        );
+      } else if (oauthError === 'fetch_user_failed') {
+        setError(
+          'Authentication failed while getting your Google account details.'
         );
       } else {
-        setError('Authentication failed.');
+        setError('Google authentication failed.');
       }
     }
   }, [location.search, navigate, onGoogleLogin]);
@@ -64,12 +90,27 @@ function Login({ onLogin, onGoogleLogin }) {
       return;
     }
 
-    onLogin({
+    const user = {
       name: email.split('@')[0] || 'User',
       method: 'password',
-    });
+    };
 
-    navigate('/');
+    // Save normal login
+    localStorage.setItem(
+      'visionassist_user',
+      JSON.stringify(user)
+    );
+
+    localStorage.setItem(
+      'visionassist_logged_in',
+      'true'
+    );
+
+    if (onLogin) {
+      onLogin(user);
+    }
+
+    navigate('/', { replace: true });
   };
 
   const handleGoogle = () => {
@@ -82,8 +123,7 @@ function Login({ onLogin, onGoogleLogin }) {
         ? 'http://localhost:8000'
         : window.location.origin);
 
-    // Directly open the backend Google OAuth route.
-    // No fetch/health check is needed here.
+    // Open Google authentication through backend
     window.location.href = `${authBase}/auth/google/login`;
   };
 
@@ -104,8 +144,8 @@ function Login({ onLogin, onGoogleLogin }) {
         </div>
 
         <p className="login-description">
-          Access camera assistance, object detection, OCR, and scene
-          description with a secure sign-in experience.
+          Access camera assistance, object detection, OCR, and
+          scene description with a secure sign-in experience.
         </p>
 
         <button
@@ -117,11 +157,20 @@ function Login({ onLogin, onGoogleLogin }) {
           Continue with Google
         </button>
 
-        <div className="divider">or sign in with email</div>
+        <div className="divider">
+          or sign in with email
+        </div>
 
-        {status && <p className="helper-text">{status}</p>}
+        {status && (
+          <p className="helper-text">
+            {status}
+          </p>
+        )}
 
-        <form className="login-form" onSubmit={submitForm}>
+        <form
+          className="login-form"
+          onSubmit={submitForm}
+        >
           <label>
             <span>Email</span>
 
@@ -152,7 +201,11 @@ function Login({ onLogin, onGoogleLogin }) {
             </div>
           </label>
 
-          {error && <p className="error-message">{error}</p>}
+          {error && (
+            <p className="error-message">
+              {error}
+            </p>
+          )}
 
           <button
             className="primary-btn full-width"
