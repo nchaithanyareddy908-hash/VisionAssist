@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import { LogIn, Lock, User } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -30,29 +30,18 @@ function Login({ onLogin, onGoogleLogin }) {
         method: 'google',
       };
 
-      // Save Google login
-      localStorage.setItem(
-        'visionassist_user',
-        JSON.stringify(user)
-      );
-
-      localStorage.setItem(
-        'visionassist_logged_in',
-        'true'
-      );
-
-      // Send user information to App
+      // Send Google user information to App.jsx
       if (onGoogleLogin) {
         onGoogleLogin(user);
       }
 
-      // Go to the main application
-      navigate('/', { replace: true });
+      // Go directly to the dashboard
+      navigate('/dashboard', { replace: true });
 
       return;
     }
 
-    // Google authentication errors
+    // Handle Google authentication errors
     if (oauthError) {
       if (oauthError === 'oauth_not_configured') {
         setError(
@@ -95,22 +84,11 @@ function Login({ onLogin, onGoogleLogin }) {
       method: 'password',
     };
 
-    // Save normal login
-    localStorage.setItem(
-      'visionassist_user',
-      JSON.stringify(user)
-    );
-
-    localStorage.setItem(
-      'visionassist_logged_in',
-      'true'
-    );
-
     if (onLogin) {
       onLogin(user);
     }
 
-    navigate('/', { replace: true });
+    navigate('/dashboard', { replace: true });
   };
 
   const handleGoogle = () => {
@@ -123,7 +101,7 @@ function Login({ onLogin, onGoogleLogin }) {
         ? 'http://localhost:8000'
         : window.location.origin);
 
-    // Open Google authentication through backend
+    // Open Google authentication through the backend
     window.location.href = `${authBase}/auth/google/login`;
   };
 
