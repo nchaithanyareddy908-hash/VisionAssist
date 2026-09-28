@@ -4,10 +4,11 @@ WORKDIR /app
 
 COPY requirements.txt .
 
-RUN python -m pip install --upgrade pip && \
-    python -m pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt && \
+    pip uninstall -y opencv-python opencv-contrib-python opencv-contrib-python-headless || true && \
+    pip install --no-cache-dir opencv-python-headless==4.10.0.84
 
-COPY ./app ./app
+COPY app ./app
 
 EXPOSE 8000
 
