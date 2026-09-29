@@ -282,6 +282,8 @@ function App() {
     }
 
     setIsProcessing(true);
+
+    // Clear any previous error before starting a new analysis.
     setPermissionError('');
     setStatusMessage('Capturing image...');
 
@@ -591,6 +593,7 @@ function App() {
   const deleteHistoryEntry = async (id) => {
     try {
       await deleteHistoryItem(id);
+
       await loadHistory();
 
       setStatusMessage(
@@ -611,6 +614,7 @@ function App() {
   const clearAllHistory = async () => {
     try {
       await clearHistory();
+
       await loadHistory();
 
       setStatusMessage(
