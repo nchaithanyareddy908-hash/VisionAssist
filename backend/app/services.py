@@ -73,11 +73,11 @@ def detect_objects(image_bytes: bytes) -> Dict[str, Any]:
 
         results = detector(
             image_np,
-            imgsz=640,
+            imgsz=320,
             conf=0.35,
             device="cpu",
             verbose=False,
-            max_det=20,
+            max_det=10,
         )
 
         detections: List[Dict[str, Any]] = []
